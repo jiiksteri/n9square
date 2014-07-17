@@ -110,6 +110,8 @@ static void add_venue(struct app *app, const gchar *id, const gchar *name, const
 			   VENUE_COLUMN_ID, id,
 			   VENUE_COLUMN_NAME, tmp,
 			   -1);
+
+	free(tmp);
 }
 
 static void parse_venue_item(JsonArray *array, guint index_, JsonNode *element_node, gpointer _app)
@@ -187,13 +189,14 @@ static void request_venues(GtkEntry *entry, struct app *app)
 				    "client_id", app->creds.client_id,
 				    "client_secret", app->creds.client_secret,
 				    "v", FOURSQUARE_API_VERSION,
-				    gtk_combo_box_text_get_active_text(app->search_type), needle,
+				    s = gtk_combo_box_text_get_active_text(app->search_type), needle,
 				    "limit", "50",
 				    "sortByDistance", "1",
 				    "query", query ? query : "",
 				    NULL);
 
 	g_strfreev(pieces);
+	free(s);
 
 	soup_session_send_message(app->soup, msg);
 	printf("%s(): %s -> %d\n", __func__,  uri = soup_uri_to_string(soup_message_get_uri(msg), TRUE), msg->status_code);
