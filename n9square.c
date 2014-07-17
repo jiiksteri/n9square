@@ -176,8 +176,12 @@ static void request_venues(GtkEntry *entry, struct app *app)
 	char *uri;
 	char *s;
 	const char *needle;
+	const char *query;
+	gchar **pieces;
 
-	needle = gtk_entry_get_text(entry);
+	pieces = g_strsplit(gtk_entry_get_text(entry), ":", 2);
+	needle = pieces[0];
+	query = pieces[1];
 
 	msg = soup_form_request_new("GET", "https://api.foursquare.com/v2/venues/explore",
 				    "client_id", app->creds.client_id,
@@ -186,7 +190,11 @@ static void request_venues(GtkEntry *entry, struct app *app)
 				    gtk_combo_box_text_get_active_text(app->search_type), needle,
 				    "limit", "50",
 				    "sortByDistance", "1",
+				    "query", query ? query : "",
 				    NULL);
+
+	g_strfreev(pieces);
+
 	soup_session_send_message(app->soup, msg);
 	printf("%s(): %s -> %d\n", __func__,  uri = soup_uri_to_string(soup_message_get_uri(msg), TRUE), msg->status_code);
 	free(uri);
