@@ -38,6 +38,7 @@ struct app {
 
 	SoupSession *soup;
 
+	GtkComboBoxText *search_type;
 	GtkEntry *search;
 	GtkTreeView *venues;
 };
@@ -182,7 +183,9 @@ static void request_venues(GtkEntry *entry, struct app *app)
 				    "client_id", app->creds.client_id,
 				    "client_secret", app->creds.client_secret,
 				    "v", FOURSQUARE_API_VERSION,
-				    "near", needle,
+				    gtk_combo_box_text_get_active_text(app->search_type), needle,
+				    "limit", "50",
+				    "sortByDistance", "1",
 				    NULL);
 	soup_session_send_message(app->soup, msg);
 	printf("%s(): %s -> %d\n", __func__,  uri = soup_uri_to_string(soup_message_get_uri(msg), TRUE), msg->status_code);
@@ -372,7 +375,7 @@ int main(int argc, char **argv)
 {
 	struct app app;
 	GtkWindow *win;
-	GtkBox *box;
+	GtkBox *box, *search_box;
 	int err;
 	char *armored_redirect;
 
@@ -408,9 +411,19 @@ int main(int argc, char **argv)
 
 	gtk_init(&argc, &argv);
 
+	app.search_type = GTK_COMBO_BOX_TEXT(gtk_combo_box_text_new());
+	gtk_combo_box_text_append_text(app.search_type, "near");
+	gtk_combo_box_text_append_text(app.search_type, "ll");
+	gtk_combo_box_set_active(GTK_COMBO_BOX(app.search_type), 0);
+
 	app.search = GTK_ENTRY(gtk_entry_new());
 	g_signal_connect(app.search, "activate", G_CALLBACK(request_venues), &app);
 	gtk_entry_set_activates_default(app.search, TRUE);
+
+	search_box = GTK_BOX(gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0));
+	gtk_box_pack_start(search_box, GTK_WIDGET(app.search_type), FALSE, FALSE, 0);
+	gtk_box_pack_start(search_box, GTK_WIDGET(app.search), TRUE, TRUE, 0);
+
 
 	app.venues = GTK_TREE_VIEW(gtk_tree_view_new_with_model(GTK_TREE_MODEL(gtk_list_store_new(2, G_TYPE_STRING, G_TYPE_STRING))));
 	gtk_tree_view_append_column(app.venues, gtk_tree_view_column_new_with_attributes("",
@@ -422,7 +435,7 @@ int main(int argc, char **argv)
 	win = GTK_WINDOW(gtk_window_new(GTK_WINDOW_TOPLEVEL));
 	gtk_widget_set_size_request(GTK_WIDGET(win), 400, 500);
 	box = GTK_BOX(gtk_box_new(GTK_ORIENTATION_VERTICAL, 0));
-	gtk_box_pack_start(GTK_BOX(box), GTK_WIDGET(app.search), FALSE, FALSE, 0);
+	gtk_box_pack_start(GTK_BOX(box), GTK_WIDGET(search_box), FALSE, FALSE, 0);
 	gtk_box_pack_start(GTK_BOX(box), scrollable(app.venues), TRUE, TRUE, 0);
 	gtk_container_add(GTK_CONTAINER(win), GTK_WIDGET(box));
 
