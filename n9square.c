@@ -13,6 +13,7 @@
 #include <libsoup/soup.h>
 
 #include <json-glib/json-glib.h>
+#include <webkit2/webkit2.h>
 
 #define FOURSQUARE_API_VERSION "20140715"
 
@@ -28,6 +29,13 @@ enum {
 
 struct app {
 	struct credentials creds;
+	char *access_token;
+	char auth_uri[512];
+	char redirect_uri[512];
+
+	char *pending_checkin;
+	int kill_browser;
+
 	SoupSession *soup;
 
 	GtkEntry *search;
@@ -244,6 +252,94 @@ static GtkWidget *scrollable(GtkTreeView *view)
 	return scrolled_win;
 }
 
+static void do_checkin(struct credentials *creds, const char *access_token, const char *venue)
+{
+	printf("%s(): NOT IMPLEMENTED\n", __func__);
+}
+
+static const char *loadevent_name(WebKitLoadEvent event)
+{
+	const char *event_name;
+
+	switch (event) {
+	case WEBKIT_LOAD_STARTED:
+		event_name = "[started]";
+		break;
+	case WEBKIT_LOAD_REDIRECTED:
+		event_name = "[redirected]";
+		break;
+	case WEBKIT_LOAD_COMMITTED:
+		event_name = "[committed]";
+		break;
+	case WEBKIT_LOAD_FINISHED:
+		event_name = "[finished]";
+		break;
+	}
+
+	return event_name;
+}
+
+static void grab_redirect(WebKitWebView *browser, WebKitLoadEvent event, struct app *app)
+{
+	const char *event_name;
+	const char *uri;
+
+	uri = webkit_web_view_get_uri(browser);
+	event_name = loadevent_name(event);
+
+	printf("%s(): %s %s\n", __func__, event_name, uri);
+
+	if (event == WEBKIT_LOAD_REDIRECTED && strncmp(uri, app->redirect_uri, strlen(app->redirect_uri)) == 0) {
+		/* Blind assumptions like this are why we cannot have nice things. */
+		app->access_token = strdup(uri + strlen(app->redirect_uri) + strlen("#access_token="));
+		printf("%s(): access token: '%s'\n", __func__, app->access_token);
+
+		/* This will emit load-failed on the browser, where we do necessary cleanup */
+		webkit_web_view_stop_loading(browser);
+
+		/* If there was a pending checking, do it now. */
+		if (app->pending_checkin) {
+			do_checkin(&app->creds, app->access_token, app->pending_checkin);
+			free(app->pending_checkin);
+			app->pending_checkin = NULL;
+		}
+
+	} else if (event == WEBKIT_LOAD_FINISHED && app->kill_browser) {
+		printf("%s(): killing browser as instructed\n", __func__);
+		/* Nah, that's a bit.. sudden. */
+		/* gtk_widget_destroy(GTK_WIDGET(browser)); */
+		app->kill_browser = 0;
+	}
+}
+
+static gboolean kill_browser(WebKitWebView *browser, WebKitLoadEvent event, gchar *failing_uri, gpointer error,
+			     struct app *app)
+{
+	printf("%s(): %s %s\n", __func__, loadevent_name(event), failing_uri);
+	app->kill_browser = 1;
+	return FALSE;
+}
+
+static void do_auth(struct app *app)
+{
+	GtkContainer *win;
+	GtkWidget *browser;
+
+	win = GTK_CONTAINER(gtk_window_new(GTK_WINDOW_TOPLEVEL));
+	gtk_widget_set_size_request(GTK_WIDGET(win), 540, 520);
+	browser = webkit_web_view_new();
+	g_signal_connect(browser, "load-changed", G_CALLBACK(grab_redirect), app);
+	/* We expect to see load-failed when we've grabbed the authorization token. */
+	g_signal_connect(browser, "load-failed", G_CALLBACK(kill_browser), app);
+	/* When the browser is killed, close the window too. */
+	g_signal_connect_swapped(browser, "destroy", G_CALLBACK(gtk_widget_destroy), win);
+	gtk_container_add(win, browser);
+	printf("%s(): loading %s\n", __func__, app->auth_uri);
+	gtk_widget_show_all(GTK_WIDGET(win));
+	webkit_web_view_load_uri((WebKitWebView *)browser, app->auth_uri);
+
+}
+
 static void checkin(GtkTreeView *tree_view, GtkTreePath *path, GtkTreeViewColumn *column, struct app *app)
 {
 	GtkTreeIter iter;
@@ -259,7 +355,17 @@ static void checkin(GtkTreeView *tree_view, GtkTreePath *path, GtkTreeViewColumn
 			   VENUE_COLUMN_NAME, &name,
 			   -1);
 
-	printf("%s(): NOT IMPLEMENTED (venue: %s %s)\n", __func__, id, name);
+	if (app->access_token != NULL) {
+		do_checkin(&app->creds, app->access_token, id);
+	} else {
+		app->pending_checkin = strdup(id);
+		do_auth(app);
+	}
+}
+
+static int dilbert_rng_digit(void)
+{
+	return 9;
 }
 
 int main(int argc, char **argv)
@@ -268,12 +374,32 @@ int main(int argc, char **argv)
 	GtkWindow *win;
 	GtkBox *box;
 	int err;
+	char *armored_redirect;
 
 	memset(&app, 0, sizeof(app));
 
 	if ((err = read_creds(&app.creds)) != 0) {
 		return err;
 	}
+
+	snprintf(app.redirect_uri, sizeof(app.redirect_uri),
+		 "http://localhost:%d%d%d%d/EAT_SHIT",
+		 dilbert_rng_digit(),
+		 dilbert_rng_digit(),
+		 dilbert_rng_digit(),
+		 dilbert_rng_digit());
+
+	armored_redirect = g_uri_escape_string(app.redirect_uri, NULL, FALSE);
+
+	snprintf(app.auth_uri, sizeof(app.auth_uri),
+		 "https://foursquare.com/oauth2/authenticate"
+		 "?client_id=%s"
+		 "&response_type=token"
+		 "&redirect_uri=%s",
+		 app.creds.client_id,
+		 armored_redirect);
+
+	g_free(armored_redirect);
 
 	if ((app.soup = soup_session_new()) == NULL) {
 		fprintf(stderr, "Failed to construct soup session\n");
