@@ -254,7 +254,25 @@ static GtkWidget *scrollable(GtkTreeView *view)
 
 static void do_checkin(struct credentials *creds, const char *access_token, const char *venue)
 {
-	printf("%s(): NOT IMPLEMENTED\n", __func__);
+	GtkWidget *confirm;
+	int response;
+
+	confirm = gtk_dialog_new_with_buttons("Check in? Really?",
+					      NULL, GTK_DIALOG_MODAL,
+					      "Why not?", GTK_RESPONSE_ACCEPT,
+					      "I shouldn't..", GTK_RESPONSE_REJECT,
+					      NULL);
+
+	switch (response = gtk_dialog_run(GTK_DIALOG(confirm))) {
+	case GTK_RESPONSE_ACCEPT:
+		printf("%s(): NOT IMPLEMENTED\n", __func__);
+		break;
+	default:
+		printf("%s(): cancelled (%d)\n", __func__, response);
+		break;
+	}
+
+	gtk_widget_destroy(confirm);
 }
 
 static const char *loadevent_name(WebKitLoadEvent event)
