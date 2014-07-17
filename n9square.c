@@ -252,7 +252,7 @@ static GtkWidget *scrollable(GtkTreeView *view)
 	return scrolled_win;
 }
 
-static void do_checkin(struct credentials *creds, const char *access_token, const char *venue)
+static void do_checkin(struct app *app, const char *venue)
 {
 	GtkWidget *confirm;
 	int response;
@@ -317,7 +317,7 @@ static void grab_redirect(WebKitWebView *browser, WebKitLoadEvent event, struct 
 
 		/* If there was a pending checking, do it now. */
 		if (app->pending_checkin) {
-			do_checkin(&app->creds, app->access_token, app->pending_checkin);
+			do_checkin(app, app->pending_checkin);
 			free(app->pending_checkin);
 			app->pending_checkin = NULL;
 		}
@@ -374,7 +374,7 @@ static void checkin(GtkTreeView *tree_view, GtkTreePath *path, GtkTreeViewColumn
 			   -1);
 
 	if (app->access_token != NULL) {
-		do_checkin(&app->creds, app->access_token, id);
+		do_checkin(app, id);
 	} else {
 		app->pending_checkin = strdup(id);
 		do_auth(app);
