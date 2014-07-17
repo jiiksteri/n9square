@@ -74,27 +74,6 @@ static int read_conf(char *buf, size_t sz, const char *file)
 	return err;
 }
 
-static SoupMessage *build_message(struct credentials *creds, const char *method, const char *uri_base)
-{
-	char *uri_buf;
-	size_t sz;
-
-	SoupMessage *msg = NULL;
-
-	sz = strlen(uri_base) + 1 +
-		strlen("client_id=") + sizeof(creds->client_id) + 1 +
-		strlen("client_secret=") + sizeof(creds->client_secret) + 1;
-	uri_buf = malloc(sz);
-	if (uri_buf != NULL) {
-		snprintf(uri_buf, sz, "%s&client_id=%s&client_secret=%s",
-			 uri_base, creds->client_id, creds->client_secret);
-		msg = soup_message_new(method, uri_buf);
-		free(uri_buf);
-	}
-
-	return msg;
-}
-
 static char *content_string(SoupMessageBody *body)
 {
 	SoupBuffer *buf;
@@ -190,32 +169,21 @@ static void parse_venues(struct app *app, const char *content)
 
 }
 
-
-
-#define VENUES_FMT "https://api.foursquare.com/v2/venues/explore?v=" FOURSQUARE_API_VERSION "&near=%s"
-
 static void request_venues(GtkEntry *entry, struct app *app)
 {
 	SoupMessage *msg;
 	char *uri;
 	char *s;
-	char *uri_buf;
 	const char *needle;
-	size_t sz;
 
 	needle = gtk_entry_get_text(entry);
-	sz = strlen(VENUES_FMT) + strlen(needle);
 
-	/* That's a few bytes extra, like */
-	uri_buf = malloc(sz);
-	if (uri_buf == NULL) {
-		perror("request_venues(): malloc failure");
-		return;
-	}
-
-	snprintf(uri_buf, sz, VENUES_FMT, needle);
-
-	msg = build_message(&app->creds, "GET", uri_buf);
+	msg = soup_form_request_new("GET", "https://api.foursquare.com/v2/venues/explore",
+				    "client_id", app->creds.client_id,
+				    "client_secret", app->creds.client_secret,
+				    "v", FOURSQUARE_API_VERSION,
+				    "near", needle,
+				    NULL);
 	soup_session_send_message(app->soup, msg);
 	printf("%s(): %s -> %d\n", __func__,  uri = soup_uri_to_string(soup_message_get_uri(msg), TRUE), msg->status_code);
 	if (msg->status_code == 200) {
@@ -224,8 +192,6 @@ static void request_venues(GtkEntry *entry, struct app *app)
 		parse_venues(app, s);
 		free(s);
 	}
-
-	free(uri_buf);
 }
 
 
