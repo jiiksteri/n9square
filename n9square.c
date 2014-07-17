@@ -254,8 +254,11 @@ static GtkWidget *scrollable(GtkTreeView *view)
 
 static void do_checkin(struct app *app, const char *venue)
 {
+	SoupMessage *msg;
 	GtkWidget *confirm;
 	int response;
+	int status = 0;
+	char *s;
 
 	confirm = gtk_dialog_new_with_buttons("Check in? Really?",
 					      NULL, GTK_DIALOG_MODAL,
@@ -265,7 +268,19 @@ static void do_checkin(struct app *app, const char *venue)
 
 	switch (response = gtk_dialog_run(GTK_DIALOG(confirm))) {
 	case GTK_RESPONSE_ACCEPT:
-		printf("%s(): NOT IMPLEMENTED\n", __func__);
+		msg = soup_form_request_new("POST", "https://api.foursquare.com/v2/checkins/add",
+					    "v", FOURSQUARE_API_VERSION,
+					    "venueId", venue,
+					    "oauth_token", app->access_token,
+					    NULL);
+		soup_session_send_message(app->soup, msg);
+		status = msg->status_code;
+		s = soup_uri_to_string(soup_message_get_uri(msg), FALSE);
+		printf("%s(): %s -> %d\n", __func__, s, status);
+		free(s);
+		s = content_string(msg->response_body);
+		printf("%s(): ---- response start ----\n%s\n---- response end ----\n", __func__, s);
+		free(s);
 		break;
 	default:
 		printf("%s(): cancelled (%d)\n", __func__, response);
