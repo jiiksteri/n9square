@@ -186,6 +186,7 @@ static void request_venues(GtkEntry *entry, struct app *app)
 				    NULL);
 	soup_session_send_message(app->soup, msg);
 	printf("%s(): %s -> %d\n", __func__,  uri = soup_uri_to_string(soup_message_get_uri(msg), TRUE), msg->status_code);
+	free(uri);
 	if (msg->status_code == 200) {
 		s = content_string(msg->response_body);
 		gtk_list_store_clear(GTK_LIST_STORE(gtk_tree_view_get_model(app->venues)));
