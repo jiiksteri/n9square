@@ -133,27 +133,21 @@ static void parse_venue_item(JsonArray *array, guint index_, JsonNode *element_n
 
 }
 
-static void parse_random_member(JsonObject *obj, const gchar *member_name, JsonNode *member_node, gpointer _app)
+static void parse_items(JsonArray *array, guint index, JsonNode *node, gpointer _app)
 {
-	/* printf("%s(): %s (%s)\n", __func__, member_name, json_node_type_name(member_node)); */
-	if (JSON_NODE_TYPE(member_node) == JSON_NODE_OBJECT) {
-		if (strcmp(member_name, "response") == 0) {
-			json_object_foreach_member(json_node_get_object(member_node), parse_random_member, _app);
-		}
-	} else if (JSON_NODE_TYPE(member_node) == JSON_NODE_ARRAY) {
-		if (strcmp(member_name, "groups") == 0) {
-			/* We just know there's a single JsonObject element in this one.. */
-			json_object_foreach_member(json_node_get_object(json_array_get_element(json_node_get_array(member_node), 0)),
-						   parse_random_member, _app);
-		} else if (strcmp(member_name, "items") == 0) {
-			json_array_foreach_element(json_node_get_array(member_node), parse_venue_item, _app);
-		}
+	JsonObject *object;
+
+	if (JSON_NODE_TYPE(node) == JSON_NODE_OBJECT) {
+		object = json_node_get_object(node);
+		array = json_node_get_array(json_object_get_member(object, "items"));
+		json_array_foreach_element(array, parse_venue_item, _app);
 	}
 }
 
 static void parse_venues(struct app *app, const char *content)
 {
 	JsonParser *parser;
+	JsonNode *node;
 
 	if (0) {
 		printf("%s():\n"
@@ -165,8 +159,14 @@ static void parse_venues(struct app *app, const char *content)
 
 	json_parser_load_from_data(parser, content, strlen(content), NULL);
 
-	json_object_foreach_member(json_node_get_object(json_parser_get_root(parser)),
-				   parse_random_member, app);
+	node = json_parser_get_root(parser);
+	node = json_object_get_member(json_node_get_object(node), "response");
+	if (node != NULL) {
+		node = json_object_get_member(json_node_get_object(node), "groups");
+		if (node != NULL && JSON_NODE_TYPE(node) == JSON_NODE_ARRAY) {
+			json_array_foreach_element(json_node_get_array(node), parse_items, app);
+		}
+	}
 
 	g_object_unref(parser);
 
