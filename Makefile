@@ -13,6 +13,7 @@ clean:
 
 $(PROG): $(OBJS)
 
+-include $(OBJS:.o=.d)
 
 %.o: %.c
 	$(CC) -c $(CFLAGS) $*.c -o $*.o
