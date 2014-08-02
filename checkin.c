@@ -177,14 +177,38 @@ static void parse_checkin_object(struct checkin *checkin, JsonObject *checkin_ob
 	}
 }
 
+static void parse_notification(JsonArray *array, guint index, JsonNode *notification_node,
+			       gpointer _checkin)
+{
+	JsonNode *item, *message, *type;
+
+	if (JSON_NODE_TYPE(notification_node) == JSON_NODE_OBJECT) {
+		type = json_object_get_member(json_node_get_object(notification_node), "type");
+		if (is_string(type) && strcmp(json_node_get_string(type), "message") == 0) {
+			item = json_object_get_member(json_node_get_object(notification_node), "item");
+			if (JSON_NODE_TYPE(item) == JSON_NODE_OBJECT) {
+				message = json_object_get_member(json_node_get_object(item), "message");
+				if (is_string(message)) {
+					checkin_add_message(_checkin, json_node_get_string(message));
+				}
+			}
+		}
+	}
+}
+
 static void parse_response_node(struct checkin *checkin, JsonNode *node)
 {
 	struct dump_context ctx = { .prefix = __func__, .depth = 0 };
-	JsonNode *checkin_node;
+	JsonNode *checkin_node, *notifications_node;
 
 	checkin_node = json_object_get_member(json_node_get_object(node), "checkin");
 	if (checkin_node != NULL && JSON_NODE_TYPE(checkin_node) == JSON_NODE_OBJECT) {
 		parse_checkin_object(checkin, json_node_get_object(checkin_node));
+	}
+	notifications_node = json_object_get_member(json_node_get_object(node), "notifications");
+	if (notifications_node != NULL && JSON_NODE_TYPE(notifications_node) == JSON_NODE_ARRAY) {
+		json_array_foreach_element(json_node_get_array(notifications_node),
+					   parse_notification, checkin);
 	}
 
 	dump_node_tree((JsonObject *)NULL, "response", node, &ctx);

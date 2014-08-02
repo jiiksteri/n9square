@@ -13,7 +13,7 @@ all: $(PROG)
 clean:
 	$(RM) $(PROG) $(OBJS) $(TEST_OBJS) *.d test/*.d
 
-test: test/run
+test: n9square test/run
 	test/run $(TEST_OBJS)
 
 test/run: $(OBJS) $(TEST_OBJS) test/run.o

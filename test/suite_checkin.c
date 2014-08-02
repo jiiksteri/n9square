@@ -1,55 +1,11 @@
 
-#include <fcntl.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 
 #include <CUnit/CUnit.h>
 
 #include "../checkin.h"
 
-
-static int read_file(char **str, const char *name)
-{
-	struct stat sbuf;
-	int fd, n;
-
-	*str = NULL;
-
-	fd = open(name, O_RDONLY);
-	if (fd == -1) {
-		fprintf(stderr, "open(%s): %s\n", name, strerror(errno));
-		return errno;
-	}
-
-	if (fstat(fd, &sbuf) == -1) {
-		fprintf(stderr, "stat(%s): %s\n", name, strerror(errno));
-		close(fd);
-		return errno;
-	}
-
-	*str = malloc(sbuf.st_size + 1);
-	if (*str == NULL) {
-		perror("malloc()");
-		close(fd);
-		return errno;
-	}
-
-	if ((n = read(fd, *str, sbuf.st_size)) != sbuf.st_size) {
-		fprintf(stderr, "read(%s): short read (%d/%ld)\n",
-			name, n, sbuf.st_size);
-		free(*str);
-		*str = NULL;
-		close(fd);
-		return errno;
-	}
-	(*str)[sbuf.st_size] = '\0';
-
-	close(fd);
-
-	return 0;
-}
+#include "test.h"
 
 struct iter_ctx {
 	int count;
@@ -99,6 +55,7 @@ void test_parse(void)
 	char *str;
 	const char *expected[] = {
 		"That's 50 straight weeks at Lidl. You set a new record!",
+		"You've been here 411 times!",
 		NULL,
 	};
 
