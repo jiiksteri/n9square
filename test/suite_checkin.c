@@ -69,6 +69,8 @@ void test_parse(void)
 	checkin_message_foreach(checkin, match_strings, &ctx);
 	CU_ASSERT(ctx.count == num_strings(expected));
 
+	CU_ASSERT_STRING_EQUAL(checkin_venue(checkin), "Lidl (Ratavartijankatu 3)");
+
 	checkin_free(checkin);
 	free(str);
 }

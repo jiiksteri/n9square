@@ -10,4 +10,6 @@ void checkin_message_foreach(struct checkin *checkin,
 			     void (*cb)(const char *msg, void *user_data),
 			     void *user_data);
 
+const char *checkin_venue(struct checkin *checkin);
+
 #endif

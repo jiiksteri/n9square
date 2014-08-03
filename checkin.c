@@ -11,6 +11,7 @@
 struct checkin {
 	JsonParser *parser;
 	GSList *messages;
+	char *venue;
 };
 
 
@@ -39,6 +40,10 @@ void checkin_message_foreach(struct checkin *checkin,
 	g_slist_foreach(checkin->messages, checkin_message_foreach_trampoline, &ctx);
 }
 
+const char *checkin_venue(struct checkin *checkin)
+{
+	return checkin->venue != NULL ? checkin->venue : "NONE";
+}
 
 static void checkin_add_message(struct checkin *checkin, const char *message)
 {
@@ -163,9 +168,37 @@ static void add_score(JsonArray *array, guint index, JsonNode *score_node, gpoin
 	}
 }
 
+static void parse_venue_object(struct checkin *checkin, JsonObject *venue_object)
+{
+	const char *name = NULL, *address = "No address";
+	JsonNode *node;
+	size_t size;
+
+	node = json_object_get_member(venue_object, "name");
+	if (node != NULL && is_string(node)) {
+		name = json_node_get_string(node);
+	}
+
+	node = json_object_get_member(venue_object, "location");
+	if (node != NULL && JSON_NODE_TYPE(node) == JSON_NODE_OBJECT) {
+		node = json_object_get_member(json_node_get_object(node), "address");
+		if (node != NULL && is_string(node)) {
+			address = json_node_get_string(node);
+		}
+	}
+
+	if (name != NULL) {
+		/* <name> (<address>) */
+		size = strlen(name) + 2 + strlen(address) + 1 + 1;
+		if ((checkin->venue = malloc(size)) != NULL) {
+			snprintf(checkin->venue, size, "%s (%s)", name, address);
+		}
+	}
+}
+
 static void parse_checkin_object(struct checkin *checkin, JsonObject *checkin_object)
 {
-	JsonNode *score_node, *scores_array;
+	JsonNode *score_node, *scores_array, *venue_node;
 
 	score_node = json_object_get_member(checkin_object, "score");
 	if (score_node != NULL && JSON_NODE_TYPE(score_node) == JSON_NODE_OBJECT) {
@@ -175,6 +208,12 @@ static void parse_checkin_object(struct checkin *checkin, JsonObject *checkin_ob
 						   add_score, checkin);
 		}
 	}
+
+	venue_node = json_object_get_member(checkin_object, "venue");
+	if (venue_node != NULL && JSON_NODE_TYPE(venue_node) == JSON_NODE_OBJECT) {
+		parse_venue_object(checkin, json_node_get_object(venue_node));
+	}
+
 }
 
 static void parse_notification(JsonArray *array, guint index, JsonNode *notification_node,
@@ -265,6 +304,11 @@ void checkin_free(struct checkin *checkin)
 	if (checkin->messages != NULL) {
 		g_slist_free(checkin->messages);
 		checkin->messages = NULL;
+	}
+
+	if (checkin->venue != NULL) {
+		free(checkin->venue);
+		checkin->venue = NULL;
 	}
 
 	if (checkin->parser != NULL) {
