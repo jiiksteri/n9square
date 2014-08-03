@@ -1,5 +1,8 @@
 #include "checkin_result.h"
 
+#include <stdlib.h>
+#include <string.h>
+
 #include <gtk/gtk.h>
 
 static void add_message(const char *message, void *_box)
@@ -16,9 +19,19 @@ static void add_message(const char *message, void *_box)
 int checkin_result_show(struct checkin *checkin)
 {
 	GtkDialog *dialog;
+	const char *venue;
+	char *title_buf;
+	size_t title_size;
 	int res;
 
-	dialog = GTK_DIALOG(gtk_dialog_new_with_buttons("Checkin",
+	venue = checkin_venue(checkin);
+	title_size = strlen("Checkin: ") + strlen(venue) + 1;
+	title_buf = malloc(title_size);
+	if (title_buf != NULL) {
+		snprintf(title_buf, title_size, "Checkin: %s", venue);
+	}
+
+	dialog = GTK_DIALOG(gtk_dialog_new_with_buttons(title_buf ? title_buf : "Checkin",
 							NULL,
 							GTK_DIALOG_MODAL,
 							"OK", GTK_RESPONSE_ACCEPT,
@@ -29,6 +42,9 @@ int checkin_result_show(struct checkin *checkin)
 
 	res = gtk_dialog_run(dialog);
 	gtk_widget_destroy(GTK_WIDGET(dialog));
+
+	free(title_buf);
+
 	return res;
 
 }
