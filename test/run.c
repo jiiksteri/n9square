@@ -73,6 +73,7 @@ int main(int argc, char **argv)
 	}
 
 	SUITE(checkin);
+	SUITE(checkin_result);
 
 	err = CU_basic_run_tests() == CUE_SUCCESS ? 0 : 1;
 	if (err == 0) {

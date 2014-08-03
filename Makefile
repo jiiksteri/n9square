@@ -1,5 +1,5 @@
 PROG := n9square
-OBJS := checkin.o
+OBJS := checkin.o checkin_result.o
 TEST_OBJS := $(patsubst %.c,%.o,$(wildcard test/suite_*.c))
 
 CFLAGS += -Wall -g $(shell pkg-config --cflags gtk+-3.0 webkit2gtk-3.0 libsoup-2.4 json-glib-1.0)

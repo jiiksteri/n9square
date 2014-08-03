@@ -15,6 +15,9 @@
 #include <json-glib/json-glib.h>
 #include <webkit2/webkit2.h>
 
+#include "checkin.h"
+#include "checkin_result.h"
+
 #define FOURSQUARE_API_VERSION "20140715"
 
 struct credentials {
@@ -237,6 +240,7 @@ static void do_checkin(struct app *app, const char *venue)
 {
 	SoupMessage *msg;
 	GtkWidget *confirm;
+	struct checkin *checkin;
 	int response;
 	int status = 0;
 	char *s;
@@ -261,6 +265,12 @@ static void do_checkin(struct app *app, const char *venue)
 		free(s);
 		s = content_string(msg->response_body);
 		printf("%s(): ---- response start ----\n%s\n---- response end ----\n", __func__, s);
+		if (checkin_parse(&checkin, s) != 0) {
+			printf("%s(): failed to parse checkin response\n", __func__);
+		} else {
+			checkin_result_show(checkin);
+			checkin_free(checkin);
+		}
 		free(s);
 		break;
 	default:
