@@ -14,7 +14,7 @@ clean:
 	$(RM) $(PROG) $(OBJS) $(TEST_OBJS) *.d test/*.d
 
 test: n9square test/run
-	test/run $(TEST_OBJS)
+	test/run $(TEST_ARGS)
 
 test/run: $(OBJS) $(TEST_OBJS) test/run.o
 	$(CC) $(CFLAGS) $(LDFLAGS) $(LDFLAGS_TEST) -o $@ $(OBJS) $(TEST_OBJS) test/run.o

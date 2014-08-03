@@ -1,8 +1,8 @@
 
 #include <fcntl.h>
+#include <getopt.h>
 #include <stdio.h>
 #include <stdlib.h>
-
 
 #include <unistd.h>
 #include <sys/types.h>
@@ -12,6 +12,41 @@
 #include <CUnit/Basic.h>
 
 #include "test.h"
+
+/*
+ * Settable via --interactive in order to do the gtk tests
+ * as that part's not automated yet.
+ */
+static int interactive;
+
+static struct option opts[] = {
+	{
+		.name = "interactive",
+		.has_arg = no_argument,
+		.val = 'i',
+	},
+	{ NULL }
+};
+
+static int parse_cmdline(int argc, char **argv)
+{
+	int ch;
+	int err;
+
+	err = 0;
+	while ((ch = getopt_long_only(argc, argv, "", opts, NULL)) != -1) {
+		switch (ch) {
+		case 'i':
+			interactive = 1;
+			break;
+		default:
+			err = 1;
+			break;
+		}
+	}
+
+	return err;
+}
 
 int read_file(char **str, const char *name)
 {
@@ -67,13 +102,22 @@ int main(int argc, char **argv)
 {
 	int err;
 
+	if ((err = parse_cmdline(argc, argv)) != 0) {
+		return err;
+	}
+
 	if (CU_initialize_registry() != CUE_SUCCESS) {
 		fprintf(stderr, "%s\n", CU_get_error_msg());
 		return EXIT_FAILURE;
 	}
 
 	SUITE(checkin);
-	SUITE(checkin_result);
+	if (interactive) {
+		/* FIXME: have the dialog tested "automatically"
+		 * to avoid this "interactive" hack.
+		 */
+		SUITE(checkin_result);
+	}
 
 	err = CU_basic_run_tests() == CUE_SUCCESS ? 0 : 1;
 	if (err == 0) {
